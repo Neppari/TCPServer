@@ -25,3 +25,13 @@ target_compile_options(TCPServer PRIVATE
     -Wextra
     -Wpedantic
 )
+
+add_executable(TCPClient
+    clients/client.cpp
+)
+
+target_compile_options(TCPClient PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
