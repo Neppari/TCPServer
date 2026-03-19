@@ -1,0 +1,1 @@
+// who is connected, are they authenticated? session tokens
