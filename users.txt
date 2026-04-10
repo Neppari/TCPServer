@@ -1,0 +1,6 @@
+# Allowed usernames (one per line)
+alice
+bob
+charlie
+dave
+eve
