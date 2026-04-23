@@ -15,6 +15,8 @@ FetchContent_Declare(json
 )
 FetchContent_MakeAvailable(json)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(sodium REQUIRED IMPORTED_TARGET libsodium)
 find_package(SQLite3 REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -33,6 +35,7 @@ target_link_libraries(TCPServer PRIVATE
     nlohmann_json::nlohmann_json
     SQLite::SQLite3
     Threads::Threads
+    PkgConfig::sodium
 )
 target_compile_options(TCPServer PRIVATE -Wall -Wextra -Wpedantic)
 
