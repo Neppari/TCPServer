@@ -4,6 +4,8 @@
 #include "game.h"
 #include "logger.h"
 
+#include <sodium.h>
+
 #include <atomic>
 #include <csignal>
 
@@ -12,6 +14,11 @@ static void onSignal(int) { running = false; }
 
 int main() {
     Logger::info("Starting server");
+
+    if (sodium_init() < 0) {
+        Logger::error("Failed to initialize libsodium");
+        return 1;
+    }
 
     SessionManager auth;
     if (!auth.loadUsers("users.txt")) {

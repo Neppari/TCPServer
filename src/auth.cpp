@@ -1,10 +1,9 @@
 #include "auth.h"
 #include "logger.h"
 
+#include <sodium.h>
+
 #include <fstream>
-#include <random>
-#include <sstream>
-#include <iomanip>
 
 bool SessionManager::loadUsers(const std::string& filepath) {
     std::ifstream file(filepath);
@@ -30,15 +29,13 @@ bool SessionManager::isAllowedUser(const std::string& username) const {
 }
 
 std::string SessionManager::generateToken() {
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist;
+    unsigned char buf[32];
+    randombytes_buf(buf, sizeof(buf));
 
-    std::ostringstream ss;
-    ss << std::hex << std::setfill('0')
-       << std::setw(16) << dist(gen)
-       << std::setw(16) << dist(gen);
-    return ss.str();
+    char hex[sizeof(buf) * 2 + 1];
+    sodium_bin2hex(hex, sizeof(hex), buf, sizeof(buf));
+
+    return std::string(hex);
 }
 
 std::string SessionManager::createSession(const std::string& username) {
