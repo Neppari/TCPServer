@@ -6,6 +6,7 @@
 
 using json = nlohmann::json;
 
+// max message size in bytes, defense against oversized packets
 constexpr uint32_t MAX_PAYLOAD_SIZE = 4096;
 constexpr int MAX_USERNAME_LENGTH = 32;
 

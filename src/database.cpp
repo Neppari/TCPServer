@@ -14,7 +14,8 @@ bool Database::init(const std::string& path) {
         return false;
     }
 
-    chmod(path.c_str(), S_IRUSR | S_IWUSR); // 0600
+    // restrict DB file to owner-only read/write (OWASP A01)
+    chmod(path.c_str(), S_IRUSR | S_IWUSR);
 
     const char* sql =
         "CREATE TABLE IF NOT EXISTS scores ("
@@ -45,8 +46,10 @@ static std::string now() {
 }
 
 bool Database::updateScore(const std::string& username, int score) {
+    // serialize DB writes from concurrent client threads
     std::lock_guard<std::mutex> lock(mtx);
 
+    // parameterized query to prevent SQL injection (OWASP A03)
     const char* sql =
         "INSERT INTO scores (username, score, updated_at) VALUES (?, ?, ?) "
         "ON CONFLICT(username) DO UPDATE SET score = ?, updated_at = ?";
@@ -74,6 +77,7 @@ bool Database::updateScore(const std::string& username, int score) {
 int Database::getScore(const std::string& username) {
     std::lock_guard<std::mutex> lock(mtx);
 
+    // parameterized query to prevent SQL injection (OWASP A03)
     const char* sql = "SELECT score FROM scores WHERE username = ?";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;

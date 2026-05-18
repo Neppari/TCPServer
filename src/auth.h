@@ -27,7 +27,7 @@ public:
     void cleanExpired();
 
 private:
-    static constexpr int TIMEOUT_SECONDS = 120;
+    static constexpr int TIMEOUT_SECONDS = 120; // Session inactivity timeout in seconds
 
     std::unordered_set<std::string> allowedUsers;           // loaded once at startup
     std::unordered_map<std::string, Session> sessions;      // token -> session

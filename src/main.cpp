@@ -15,6 +15,7 @@ static void onSignal(int) { running = false; }
 int main() {
     Logger::info("Starting server");
 
+    // init libsodium for CSPRNG token generation
     if (sodium_init() < 0) {
         Logger::error("Failed to initialize libsodium");
         return 1;
@@ -35,6 +36,7 @@ int main() {
     GameEngine game(db);
     Network server(8080, auth, game, db);
 
+    // graceful shutdown, clean up threads and sockets on Ctrl+C
     std::signal(SIGINT, onSignal);
 
     if (!server.start()) return 1;

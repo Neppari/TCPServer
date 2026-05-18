@@ -20,6 +20,7 @@ public:
     void shutdown();
 
 private:
+    // connection limit to prevent thread/resource exhaustion
     static constexpr int MAX_CLIENTS = 10;
 
     void handleClient(int clientFd, std::string clientIp);

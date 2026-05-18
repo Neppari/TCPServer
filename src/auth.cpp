@@ -30,6 +30,7 @@ bool SessionManager::isAllowedUser(const std::string& username) const {
 
 std::string SessionManager::generateToken() {
     unsigned char buf[32];
+    // CSPRNG token via libsodium, ensures tokens are unguessable (OWASP A02)
     randombytes_buf(buf, sizeof(buf));
 
     char hex[sizeof(buf) * 2 + 1];
@@ -39,9 +40,12 @@ std::string SessionManager::generateToken() {
 }
 
 std::string SessionManager::createSession(const std::string& username) {
+    // shared session state is accessed from multiple client threads
     std::lock_guard<std::mutex> lock(mtx);
 
+    // reject users not on the allowlist (OWASP A01)
     if (allowedUsers.count(username) == 0) return "";
+    // prevent duplicate concurrent sessions, blocks impersonation
     if (activeUsers.count(username) > 0) return "";
 
     auto token = generateToken();
@@ -57,6 +61,7 @@ bool SessionManager::validateToken(const std::string& token) {
     auto it = sessions.find(token);
     if (it == sessions.end()) return false;
 
+    // expire idle sessions to limit the token reuse window (OWASP A07)
     auto elapsed = std::chrono::steady_clock::now() - it->second.lastActivity;
     if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() > TIMEOUT_SECONDS) {
         activeUsers.erase(it->second.username);
@@ -73,6 +78,7 @@ bool SessionManager::validateSeq(const std::string& token, uint32_t seq) {
 
     auto it = sessions.find(token);
     if (it == sessions.end()) return false;
+    // reject out-of-order or replayed packets
     if (seq != it->second.nextSeq) return false;
 
     it->second.nextSeq++;

@@ -17,6 +17,7 @@ static std::string timestamp() {
 }
 
 static void log(const std::string& level, const std::string& msg, const std::string& ip) {
+    // prevent interleaved log output from concurrent threads
     std::lock_guard<std::mutex> lock(logMutex);
     std::cout << "[" << timestamp() << "] [" << level << "]";
     if (!ip.empty()) std::cout << " [" << ip << "]";

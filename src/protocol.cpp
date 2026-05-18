@@ -8,6 +8,7 @@
 static bool sendAll(int fd, const void* data, size_t len) {
     auto ptr = static_cast<const char*>(data);
     while (len > 0) {
+        // prevent SIGPIPE crash if client disconnects mid-send
         ssize_t n = send(fd, ptr, len, MSG_NOSIGNAL);
         if (n <= 0) return false;
         ptr += n;
@@ -29,6 +30,7 @@ static bool recvAll(int fd, void* data, size_t len) {
 
 bool sendMessage(int fd, const json& msg) {
     std::string payload = msg.dump();
+    // cap outgoing payload size
     if (payload.size() > MAX_PAYLOAD_SIZE) return false;
 
     uint32_t netLen = htonl(static_cast<uint32_t>(payload.size()));
@@ -41,11 +43,13 @@ json readMessage(int fd) {
     if (!recvAll(fd, &netLen, sizeof(netLen))) return nullptr;
 
     uint32_t len = ntohl(netLen);
+    // reject oversized or empty payloads to prevent memory exhaustion (OWASP A08)
     if (len == 0 || len > MAX_PAYLOAD_SIZE) return nullptr;
 
     std::vector<char> buf(len);
     if (!recvAll(fd, buf.data(), len)) return nullptr;
 
+    // safely reject malformed JSON, treat parse failure as disconnect
     try {
         return json::parse(buf.begin(), buf.end());
     } catch (...) {
@@ -104,9 +108,11 @@ std::string validateLogin(const json& msg) {
         return "missing/invalid 'username'";
 
     std::string name = msg["username"];
+    // cap username length to prevent oversized input
     if (name.empty() || static_cast<int>(name.size()) > MAX_USERNAME_LENGTH)
         return "username length must be 1-" + std::to_string(MAX_USERNAME_LENGTH);
 
+    // only allow safe characters, blocks injection payloads (OWASP A03)
     for (char c : name) {
         if (!std::isalnum(c) && c != '_')
             return "username has invalid characters (alphanumeric and _ only)";

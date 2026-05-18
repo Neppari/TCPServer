@@ -25,6 +25,7 @@ int GameEngine::computeScore(const EventData& e) {
 }
 
 EventResult GameEngine::processEvent(const std::string& username, const EventData& event) {
+    // server-side bounds check, reject out-of-range values (OWASP A04)
     if (event.gold < 0 || event.gold > MAX_GOLD)
         return {false, "gold out of range (0-" + std::to_string(MAX_GOLD) + ")", 0};
     if (event.experience < 0 || event.experience > MAX_XP)
@@ -32,8 +33,10 @@ EventResult GameEngine::processEvent(const std::string& username, const EventDat
     if (event.itemsFound < 0 || event.itemsFound > MAX_ITEMS)
         return {false, "items out of range (0-" + std::to_string(MAX_ITEMS) + ")", 0};
 
+    // score computed server-side, client values never trusted
     int gained = computeScore(event);
 
+    // game state is shared across client threads
     std::lock_guard<std::mutex> lock(mtx);
     auto it = players.find(username);
     if (it == players.end())

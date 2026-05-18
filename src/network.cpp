@@ -63,8 +63,10 @@ void Network::run(std::atomic<bool>& running) {
 
         std::string clientIp = inet_ntoa(clientAddr.sin_addr);
 
+        // connection cap to limit resource exhaustion (OWASP A05)
         if (clientCount >= MAX_CLIENTS) {
             Logger::warn("Rejected: max clients (" + std::to_string(MAX_CLIENTS) + ")", clientIp);
+            // generic error code only, no internal details sent to client (OWASP A05)
             sendMessage(clientFd, buildError(503));
             close(clientFd);
             continue;
@@ -107,6 +109,7 @@ void Network::handleClient(int clientFd, std::string clientIp) {
 
         if (!msg.contains("type") || !msg["type"].is_string()) {
             Logger::warn("Message missing 'type'", clientIp);
+            // generic error, details logged server-side only
             sendMessage(clientFd, buildError(400));
             continue;
         }
@@ -123,6 +126,7 @@ void Network::handleClient(int clientFd, std::string clientIp) {
 
             std::string username = msg["username"];
 
+            // allowlist check, reject unknown usernames (OWASP A01)
             if (!auth.isAllowedUser(username)) {
                 Logger::warn("Unknown user: " + username, clientIp);
                 sendMessage(clientFd, buildError(403));
@@ -152,6 +156,7 @@ void Network::handleClient(int clientFd, std::string clientIp) {
                 continue;
             }
 
+            // validate session token before processing (OWASP A01)
             std::string token = msg["token"];
             if (!auth.validateToken(token)) {
                 Logger::warn("Invalid token on GAME_EVENT", clientIp);
@@ -159,6 +164,7 @@ void Network::handleClient(int clientFd, std::string clientIp) {
                 continue;
             }
 
+            // enforce monotonic sequence, reject replayed events
             uint32_t seq = msg["seq"];
             if (!auth.validateSeq(token, seq)) {
                 Logger::warn("Bad seq " + std::to_string(seq), clientIp);
@@ -167,6 +173,7 @@ void Network::handleClient(int clientFd, std::string clientIp) {
             }
 
             auto username = auth.getUsernameForToken(token);
+            // only read known fields, extra client fields like "score" are ignored (OWASP A04)
             EventData event{msg["gold"], msg["experience"], msg["items_found"]};
             auto result = game.processEvent(username, event);
 
@@ -233,7 +240,7 @@ void Network::shutdown() {
         serverFd = -1;
     }
 
-    // Unblock all client recv() calls
+    // Unblock recv() on all clients for clean thread shutdown
     {
         std::lock_guard<std::mutex> lock(fdsMtx);
         for (int fd : clientFds)
